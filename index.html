@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5PM Countdown</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f5;
+      --bg3: #ebebeb;
+      --border: rgba(0,0,0,0.12);
+      --border-strong: rgba(0,0,0,0.22);
+      --text: #111111;
+      --text2: #666666;
+      --accent: rgba(0,0,0,0.06);
+      --accent-border: #5b50d6;
+      --accent-bg: rgba(91,80,214,0.10);
+      --radius: 14px;
+      --btn-h: 44px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --bg2: #242424;
+        --bg3: #2e2e2e;
+        --border: rgba(255,255,255,0.12);
+        --border-strong: rgba(255,255,255,0.22);
+        --text: #f0f0f0;
+        --text2: #999999;
+        --accent: rgba(255,255,255,0.06);
+        --accent-border: #7b70f0;
+        --accent-bg: rgba(123,112,240,0.15);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem 6rem;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Countdown ── */
+    #countdown {
+      font-size: clamp(52px, 15vw, 80px);
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin-bottom: 2.5rem;
+      color: var(--text);
+    }
+
+    /* ── Launch button ── */
+    .btn-wrap {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      z-index: 100;
+    }
+
+    .launcher {
+      display: inline-flex;
+      align-items: stretch;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .fire-btn {
+      font-size: 24px;
+      width: 52px;
+      height: var(--btn-h);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fire-btn:hover, .fire-btn:focus-visible { background: var(--accent); }
+    .fire-btn:active { transform: scale(0.92); }
+
+    .sep { width: 1px; background: var(--border-strong); align-self: stretch; margin: 9px 0; }
+
+    .arrow-btn {
+      width: 30px;
+      height: var(--btn-h);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text2);
+      transition: background 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .arrow-btn:hover, .arrow-btn:focus-visible { background: var(--accent); }
+
+    .arrow-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+    .arrow-btn.open svg { transform: rotate(180deg); }
+
+    /* ── Picker panel ── */
+    .picker {
+      display: none;
+      flex-direction: column;
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(340px, 96vw);
+      background: var(--bg);
+      border: 1.5px solid var(--border-strong);
+      border-radius: var(--radius);
+      overflow: hidden;
+      z-index: 1000;
+    }
+    .picker.open { display: flex; }
+
+    /* category strip */
+    .cat-strip {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 8px 8px 6px;
+      border-bottom: 1.5px solid var(--border-strong);
+      flex-shrink: 0;
+    }
+    .cat-strip::-webkit-scrollbar { display: none; }
+
+    .cat-btn {
+      font-size: 18px;
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn:hover { background: var(--accent); }
+    .cat-btn.active {
+      background: var(--accent-bg);
+      outline: 1.5px solid var(--accent-border);
+      outline-offset: -1px;
+    }
+
+    /* page nav */
+    .page-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      border-bottom: 1.5px solid var(--border);
+      flex-shrink: 0;
+    }
+    .page-label { font-size: 11px; color: var(--text2); }
+    .nav-arrows { display: flex; gap: 4px; }
+
+    .nav-arr {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-arr:hover { background: var(--bg2); }
+    .nav-arr:disabled { opacity: 0.3; cursor: default; }
+    .nav-arr svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* emoji grid */
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 2px;
+      padding: 6px 8px 8px;
+    }
+
+    .e-item {
+      font-size: 20px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .e-item:hover { background: var(--bg3); }
+    .e-item.selected { border-color: var(--accent-border); background: var(--accent-bg); }
+
+    /* ── Particle ── */
+    .particle { position: fixed; pointer-events: none; z-index: 9999; will-change: transform; }
+  </style>
+</head>
+<body>
+
+<div id="countdown">--:--:--</div>
+
+<div class="btn-wrap" id="btn-wrap">
+  <div class="launcher">
+    <button class="fire-btn" id="fire-btn" onclick="shoot()" aria-label="Launch">🎊</button>
+    <div class="sep"></div>
+    <button class="arrow-btn" id="arrow-btn" onclick="togglePicker(event)" aria-label="Pick emoji" aria-expanded="false">
+      <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+  </div>
+
+  <div class="picker" id="picker" role="dialog" aria-label="Emoji picker">
+    <div class="cat-strip" id="cat-strip"></div>
+    <div class="page-nav" id="page-nav">
+      <span class="page-label" id="page-label"></span>
+      <div class="nav-arrows">
+        <button class="nav-arr" id="prev-btn" onclick="changePage(-1)" aria-label="Previous page">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="nav-arr" id="next-btn" onclick="changePage(1)" aria-label="Next page">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+  </div>
+</div>
+
+<script>
+  // ── Data ──────────────────────────────────────────────────────────────────
+
+  const CATS = [
+    { icon: '⭐', name: 'Favourites',  key: 'favs',     emojis: [] },
+    { icon: '🕐', name: 'Most used',   key: 'used',     emojis: [] },
+    { icon: '🎊', name: 'Confetti',    key: 'confetti', emojis: ['🎊'] },
+    { icon: '😀', name: 'Smileys',     key: 'smileys',  emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾'] },
+    { icon: '👋', name: 'People',      key: 'people',   emojis: ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁','👅','👄','👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️','💂','🥷','👷','👸','👳','👲','🧕','🤵','👰','🤰','👼','🎅','🤶','🦸','🦹','🧙','🧝','🧛','🧟','🧞','🧜','🧚','👫','👬','👭','💏','💑','👪'] },
+    { icon: '🐶', name: 'Animals',     key: 'animals',  emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🦕','🦖','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐓','🦃','🦚','🦜','🦢','🦩','🕊','🐇','🦝','🦨','🦡','🦦','🦥','🐁','🐀','🐿','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌙','🌟','⭐','🌠','🌌','❄️','☃️','⛄','🌈','🌊'] },
+    { icon: '🍎', name: 'Food',        key: 'food',     emojis: ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🍲','🍛','🍜','🍝','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥮','🍢','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🍵','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🧊','🍴','🥢','🧂'] },
+    { icon: '⚽', name: 'Sports',      key: 'sports',   emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🏏','🥅','⛳','🎣','🥊','🥋','🎽','🛹','🛼','🛷','⛸','🥌','🎿','⛷','🏂','🪂','🏋️','🤸','🤼','🤺','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖','🏵','🎗','🎫','🎟','🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎵','🎶','🎹','🥁','🎷','🎺','🎸','🎻','🎲','♟','🎯','🎳','🎮','🎰','🧩'] },
+    { icon: '🚗', name: 'Travel',      key: 'travel',   emojis: ['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍','🛵','🚲','🛴','🛹','🛼','⛽','🚨','🚥','🚦','🛑','🚧','⚓','⛵','🚤','🛥','🛳','⛴','🚢','✈️','🛩','🛫','🛬','🪂','💺','🚁','🚀','🛸','🌍','🌎','🌏','🧭','🌋','🏔','⛰','🗻','🏕','🏖','🏜','🏝','🏞','🏟','🏛','🏗','🛖','🏘','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','🕍','⛩','🕋','⛲','⛺','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉','🎠','🎡','🎢','💈','🎪'] },
+    { icon: '💡', name: 'Objects',     key: 'objects',  emojis: ['⌚','📱','📲','💻','⌨️','🖥','🖨','🖱','🕹','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽','🎞','📞','☎️','📟','📠','📺','📻','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯','🧯','💸','💵','💴','💶','💷','💰','💳','💎','⚖️','🪜','🧰','🔧','🔩','⚙️','🔗','⛓','🪝','🧲','🔫','💣','🏹','🛡','🔪','⚔️','🌂','☂️','🪡','🧵','🧶','👓','🕶','🥽','🧣','🧤','🧥','👒','🎩','🧢','👑','💄','💍','💼','👜','👛','👝','🎒','🧳','👙','👗','👘','🥻','👔','👕','👖','🧦','👞','👟','🥾','🥿','👠','👡','🩴','👢','🎓'] },
+    { icon: '💬', name: 'Symbols',     key: 'symbols',  emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','✡️','🔯','🛐','☯️','✌️','🆚','🆕','🆙','🆒','🆓','🔝','🔛','🔜','🔚','🔙','⏩','⏫','⏪','⏬','⏭','⏮','🔀','🔁','🔂','▶️','⏸','⏹','⏺','🎦','🔅','🔆','📶','🔕','🔔','🔇','🔈','🔉','🔊','📢','📣','💯','#️⃣','*️⃣','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','🅰️','🅱️','🆎','🆑','🅾️','🆘','❌','⭕','🛑','⛔','📛','🚫','💤','♾','💠','⚠️','🚸','♿','🚻','🚺','🚹','🚼','🚾','🚰','🚭','🎌','🏁','🏳️','🏴','🏴‍☠️'] },
+  ];
+
+  const PER_PAGE = 56;
+  const MAX_USED = 24;
+  const MAX_FAVS = 24;
+
+  // ── State ─────────────────────────────────────────────────────────────────
+
+  let curCat = 2;  // start on Confetti
+  let curPage = 0;
+  let selected = 'confetti';
+
+  function loadStorage(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+  }
+  function saveStorage(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  }
+
+  let favs = loadStorage('em_favs', []);
+  let used = loadStorage('em_used', []);
+
+  function syncDynamicCats() {
+    CATS[0].emojis = [...favs];
+    CATS[1].emojis = [...used];
+  }
+
+  function trackUsed(emoji) {
+    if (emoji === 'confetti') return;
+    used = used.filter(e => e !== emoji);
+    used.unshift(emoji);
+    if (used.length > MAX_USED) used = used.slice(0, MAX_USED);
+    saveStorage('em_used', used);
+  }
+
+  function toggleFav(emoji) {
+    if (emoji === 'confetti') return;
+    if (favs.includes(emoji)) {
+      favs = favs.filter(e => e !== emoji);
+    } else {
+      favs.unshift(emoji);
+      if (favs.length > MAX_FAVS) favs = favs.slice(0, MAX_FAVS);
+    }
+    saveStorage('em_favs', favs);
+    syncDynamicCats();
+    if (curCat === 0) renderGrid();
+  }
+
+  // ── Countdown ─────────────────────────────────────────────────────────────
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function isFreeTime() {
+    const h = new Date().getHours();
+    return h < 9 || h >= 17;
+  }
+
+  function showFree() {
+    const el = document.getElementById('countdown');
+    el.textContent = 'You are free! 🎉';
+    el.style.fontSize = 'clamp(28px, 8vw, 42px)';
+  }
+
+  function tick() {
+    if (isFreeTime()) return; // static message already showing, no update needed
+
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(17, 0, 0, 0);
+    const diff = target - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const el = document.getElementById('countdown');
+    el.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+    el.style.fontSize = 'clamp(52px, 15vw, 80px)';
+  }
+
+  function burstConfetti() {
+    for (let i = 0; i < 80; i++) setTimeout(() => spawnParticle(true, null), i * 18);
+  }
+
+  function repeatingConfetti() {
+    burstConfetti();
+    setInterval(burstConfetti, 5000);
+  }
+
+  if (isFreeTime()) {
+    showFree();
+    repeatingConfetti();
+  } else {
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  // ── Picker UI ─────────────────────────────────────────────────────────────
+
+  function buildCatStrip() {
+    const strip = document.getElementById('cat-strip');
+    CATS.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-btn' + (i === curCat ? ' active' : '');
+      btn.textContent = c.icon;
+      btn.title = c.name;
+      btn.onclick = e => { e.stopPropagation(); curCat = i; curPage = 0; renderGrid(); updateActiveCat(); };
+      strip.appendChild(btn);
+    });
+  }
+
+  function updateActiveCat() {
+    document.querySelectorAll('.cat-btn').forEach((b, i) => b.classList.toggle('active', i === curCat));
+  }
+
+  function renderGrid() {
+    syncDynamicCats();
+    const cat = CATS[curCat];
+    const emojis = cat.emojis;
+    const grid = document.getElementById('emoji-grid');
+    const nav = document.getElementById('page-nav');
+    grid.innerHTML = '';
+
+    // Empty state for favs / most used
+    if (emojis.length === 0) {
+      nav.style.visibility = 'hidden';
+      const msg = document.createElement('div');
+      msg.style.cssText = 'grid-column:1/-1;padding:16px 8px;font-size:13px;color:var(--text2);text-align:center;';
+      msg.textContent = curCat === 0 ? 'Long-press any emoji to add it here.' : 'No emojis used yet.';
+      grid.appendChild(msg);
+      return;
+    }
+
+    const total = Math.ceil(emojis.length / PER_PAGE);
+    curPage = Math.min(curPage, total - 1);
+    const page = emojis.slice(curPage * PER_PAGE, (curPage + 1) * PER_PAGE);
+
+    if (total <= 1) {
+      nav.style.visibility = 'hidden';
+    } else {
+      nav.style.visibility = 'visible';
+      document.getElementById('page-label').textContent = 'Page ' + (curPage + 1) + ' of ' + total;
+      document.getElementById('prev-btn').disabled = curPage === 0;
+      document.getElementById('next-btn').disabled = curPage >= total - 1;
+    }
+
+    page.forEach(em => {
+      const el = document.createElement('div');
+      el.className = 'e-item' + (selected === em ? ' selected' : '');
+      el.textContent = em;
+
+      // Tap = select, long-press = toggle fav
+      let pressTimer;
+      el.addEventListener('pointerdown', () => {
+        pressTimer = setTimeout(() => { pressTimer = null; toggleFav(em); }, 500);
+      });
+      el.addEventListener('pointerup', e => {
+        e.stopPropagation();
+        if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; pick(em, em); }
+      });
+      el.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+      el.addEventListener('contextmenu', e => e.preventDefault());
+
+      grid.appendChild(el);
+    });
+  }
+
+  function changePage(dir) {
+    const total = Math.ceil(CATS[curCat].emojis.length / PER_PAGE);
+    curPage = Math.max(0, Math.min(total - 1, curPage + dir));
+    renderGrid();
+  }
+
+  function pick(id, icon) {
+    selected = id;
+    trackUsed(id);
+    document.getElementById('fire-btn').textContent = id === 'confetti' ? '🎊' : icon;
+    renderGrid();
+    closePicker();
+  }
+
+  function togglePicker(e) {
+    e.stopPropagation();
+    const picker = document.getElementById('picker');
+    const btn = document.getElementById('arrow-btn');
+    const isOpen = picker.classList.toggle('open');
+    btn.setAttribute('aria-expanded', isOpen);
+    btn.classList.toggle('open', isOpen);
+    if (isOpen) { syncDynamicCats(); renderGrid(); }
+  }
+
+  function closePicker() {
+    document.getElementById('picker').classList.remove('open');
+    const btn = document.getElementById('arrow-btn');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.classList.remove('open');
+  }
+
+  document.addEventListener('click', e => {
+    if (!document.getElementById('btn-wrap').contains(e.target)) closePicker();
+  });
+
+  // ── Confetti / emoji burst ────────────────────────────────────────────────
+
+  const CONFETTI_COLORS = ['#7F77DD','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#EF9F27','#E24B4A','#5DCAA5','#F0997B'];
+
+  function spawnParticle(isConfetti, emoji) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+
+    if (isConfetti) {
+      el.style.width  = (8 + Math.random() * 7) + 'px';
+      el.style.height = (5 + Math.random() * 5) + 'px';
+      el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      el.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    } else {
+      el.style.fontSize = '24px';
+      el.textContent = emoji;
+    }
+
+    document.body.appendChild(el);
+
+    const sx = Math.random() * window.innerWidth;
+    const sy = window.innerHeight + 20;
+    const tx = sx + (Math.random() - 0.5) * 360;
+    const ty = -160 - Math.random() * window.innerHeight * 0.65;
+    const rot = (Math.random() - 0.5) * 720;
+    const dur = 1200 + Math.random() * 900;
+
+    el.style.left = sx + 'px';
+    el.style.top  = sy + 'px';
+
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = Math.min((now - t0) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const x = sx + (tx - sx) * ease;
+      const y = sy + (ty - sy) * ease + t * t * 50;
+      el.style.transform = `translate(${x - sx}px,${y - sy}px) rotate(${rot * t}deg)`;
+      el.style.opacity = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      t < 1 ? requestAnimationFrame(frame) : el.remove();
+    })(t0);
+  }
+
+  function shoot() {
+    const isConfetti = selected === 'confetti';
+    const emoji = isConfetti ? null : selected;
+    const count = isConfetti ? 80 : 45;
+    for (let i = 0; i < count; i++) setTimeout(() => spawnParticle(isConfetti, emoji), i * 18);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  syncDynamicCats();
+  buildCatStrip();
+</script>
+</body>
+</html>
